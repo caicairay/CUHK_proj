@@ -1,0 +1,74 @@
+import numpy as np
+from numpy import linalg as LA
+import matplotlib.pyplot as plt
+import h5py
+import toolfunc as tf
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
+from mayavi import mlab
+import webcolors
+def main():
+    file=h5py.File('/data/zitan/960/run960-6/hdfaa.017','r')
+    rho=file['gas_density'][:]
+    rho=rho[160:200,60:140,30:70]
+    #pos=(17,4,20)
+    pos=(20,45,20)
+    #rhos=np.loadtxt('../data_hub/ring.txt')
+    #pos=(90,160)
+    #pos=(177,104,50)
+    #pos=(90,90)
+    #pos=(70,120)
+    #pos=(200,200)
+    hess=tf.hessian(rho)
+    g=np.array(np.gradient(rho))
+    #grad=tf.mean_shift(pos,rho,5)
+    grad=g[(Ellipsis,)+pos]
+    w,v=LA.eigh(hess[(Ellipsis,)+pos])
+    vv=v[:,0].reshape((3,1))
+    vvt=vv.dot(vv.T)
+    pjshift0=vvt.dot(grad)
+    vv=v[:,1].reshape((3,1))
+    vvt=vv.dot(vv.T)
+    pjshift1=vvt.dot(grad)
+    vv=v[:,2].reshape((3,1))
+    vvt=vv.dot(vv.T)
+    pjshift2=vvt.dot(grad)
+    npos_g=np.array(pos)+np.array(grad)
+    npos_pj0=np.array(pos)+np.array(pjshift0)
+    npos_pj1=np.array(pos)+np.array(pjshift1)
+    npos_pj2=np.array(pos)+np.array(pjshift2)
+    
+#    fig = plt.figure()
+    mlab.contour3d(rho,transparent=True)#,opacity=.5)
+    #mlab.points3d(pos[0],pos[1],pos[2],scale_factor=1)
+    #mlab.points3d(npos_g[0],npos_g[1],npos_g[2],scale_factor=.5)
+    #mlab.points3d(npos_pj0[0],npos_pj0[1],npos_pj0[2],scale_factor=.3)
+    #mlab.points3d(npos_pj1[0],npos_pj1[1],npos_pj1[2],scale_factor=.3)
+    #mlab.points3d(npos_pj2[0],npos_pj2[1],npos_pj2[2],scale_factor=.3)
+    colorg=(0,1,0)
+    colorr=(1,0,0)
+    colorb=(0,0,1)
+    colork=(0,0,0)
+    #mlab.quiver3d(pos[0],pos[1],pos[2],grad[0],grad[1],grad[2],color=colork)
+    #mlab.quiver3d(pos[0],pos[1],pos[2],pjshift0[0],pjshift0[1],pjshift0[2],color=colorr)
+    #mlab.quiver3d(pos[0],pos[1],pos[2],pjshift1[0],pjshift1[1],pjshift1[2],color=colorg)
+    mlab.quiver3d(pos[0],pos[1],pos[2],pjshift2[0],pjshift2[1],pjshift2[2],color=colorb)
+    mlab.show()
+#    ax = fig.add_subplot(111, projection='3d')
+#    ax.scatter(pos[0],pos[1],pos[2])
+#    ax.scatter(npos_g[0],npos_g[1],npos_g[2])
+#    plt.quiver(pos[0],pos[1],pos[2],grad[0],grad[1],grad[2],color='k')
+    #plt.contourf(rhos,50)
+    #plt.scatter(pos[0],pos[1])
+    #plt.scatter(npos_g[0],npos_g[1],c='k')
+    #plt.scatter(npos_pj0[0],npos_pj0[1],c='r')
+    #plt.scatter(npos_pj1[0],npos_pj1[1],c='b')
+    #plt.quiver(pos[0],pos[1],grad[0],grad[1],color='k')
+    #plt.quiver(pos[0],pos[1],vv0[0],vv0[1],color='r')
+    #plt.quiver(pos[0],pos[1],vv1[0],vv1[1],color='b')
+    ##plt.quiver(pos[0],pos[1],pjshift0[0],pjshift0[1],color='r')
+    ##plt.quiver(pos[0],pos[1],pjshift1[0],pjshift1[1],color='b')
+    #plt.grid(b=True)
+    #plt.axis('square')
+#    plt.show()
+if __name__ == "__main__":
+    main()

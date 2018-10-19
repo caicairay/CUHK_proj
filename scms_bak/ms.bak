@@ -1,0 +1,119 @@
+#!/usr/bin/python
+
+import matplotlib
+matplotlib.use('Agg')
+import numpy as np
+from numpy import linalg as LA
+import matplotlib.pyplot as plt
+import h5py
+
+def hessian(x):
+    """
+    Calculate the hessian matrix with finite differences
+    Parameters:
+       - x : ndarray
+    Returns:
+       an array of shape (x.dim, x.ndim) + x.shape
+       where the array[i, j, ...] corresponds to the second derivative x_ij
+    """
+    x_grad = np.gradient(x) 
+    hessian = np.empty((x.ndim, x.ndim) + x.shape, dtype=x.dtype) 
+    for k, grad_k in enumerate(x_grad):
+        # iterate over dimensions
+        # apply gradient again to every component of the first derivative.
+        tmp_grad = np.gradient(grad_k) 
+        for l, grad_kl in enumerate(tmp_grad):
+            hessian[k, l, :, :] = grad_kl
+    return hessian
+def neighbour(x,y,lim):
+    neighb=[]
+    xx=np.arange(x[0]-y,x[0]+y+1)
+    yy=np.arange(x[1]-y,x[1]+y+1)
+    for i in xx:
+        for j in yy:
+            if i>0 and j>0 and i<lim and j<lim:
+                neighb.append([i,j])
+    return neighb
+
+def gaussian(pos,posn,h):
+    #gaussian=lambda s: np.exp(-1/2*s**2)
+    gaussian=lambda d: 1/np.sqrt(2*np.pi)/h*np.exp(-1/2*(d/h)**2)
+    d=np.sqrt(sum((pos-posn)**2))
+    return gaussian(d)
+
+def mean_shift(pos,rhos,ran,h):
+    n=rhos.shape
+    neighb=neighbour(pos,ran,n[0])
+    weight=[gaussian(pos,ii,h)*rhos[ii[0],ii[1]]**3 for ii in neighb]
+    shiftx=np.average([ii[0] for ii in neighb],weights=weight)-pos[0]
+    shifty=np.average([ii[1] for ii in neighb],weights=weight)-pos[1]
+    return np.array([[shiftx],
+                     [shifty]])
+
+def ms(rhos):
+    n=rhos.shape
+    threshold=np.mean(rhos)
+    mesh=[]
+    for i in np.arange(0,n[0]-1,2):
+        for j in np.arange(0,n[0]-1,2):
+            if rhos[i,j]>threshold:
+                mesh.append([i,j])
+    mesh=np.array(mesh)
+    g=np.array(np.gradient(rhos))
+    hess=hessian(rhos)
+    mm=mesh.shape[0]
+    t=0
+    eps=1e-6
+    maxt=10
+    h=np.repeat(2,mm)
+    ran=np.repeat(40,mm)
+    error=np.repeat(1e8,mm)
+    plt.figure(t)
+    plt.contourf(rhos,20)
+    plt.axis('square')
+    for y,x in mesh:
+        plt.plot(x,y, 'x', color='b',markersize=1)
+    plt.savefig('points'+'{:0>2}'.format(t)+'.jpg',dpi=300,format='jpg',bbox_inches='tight')
+    plt.close()
+    while max(error)>=eps and t<maxt:
+        t+=1
+        print 'iteration:',t
+        for (m,pos) in enumerate(mesh[:,]):
+            if error[m]<=eps:
+                h[m]+=.5 
+                h[m]=max(h[m],5)
+            shift=mean_shift(pos,rhos,ran[m],h[m])
+            step=sum(shift**2)
+            mhess=hess[:,:,pos[0],pos[1]]
+            w,v=LA.eigh(mhess)
+            vv=v[:,1:]
+            vvt=vv.dot(vv.T)
+            vvt=vvt/LA.norm(vvt)
+            pjshift=vvt.dot(shift)
+            pjstep=vv.T.dot(shift)
+            error[m]=np.sqrt(pjstep**2/step**2)
+            npos=np.array([x+int(round(y)) for x,y in zip(pos,pjshift)])
+            npos=npos.clip(min=0,max=n[0]-1)
+            mesh[m,]=npos
+        point=np.array(mesh)
+        plt.figure(t)
+        plt.contourf(rhos,20)
+        plt.axis('square')
+        for y,x in point:
+            plt.plot(x,y, 'x', color='b',markersize=1)
+        plt.savefig('points'+'{:0>2}'.format(t)+'.jpg',dpi=300,format='jpg',bbox_inches='tight')
+        plt.close()
+    return np.array(mesh)
+
+def main():
+    fnum=30
+    path='/data/zitan/240/240-4/'
+    flnm=path+'hdfaa.'+'{:03d}'.format(fnum)
+    file = h5py.File(flnm,'r')
+    rho=file['gas_density']
+    #rhos=np.sum(rho,axis=2)
+    rhos=rho[:,:,100]
+    point = ms(rhos)
+
+if __name__ == "__main__":
+    main()
