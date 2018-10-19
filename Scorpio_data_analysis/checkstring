@@ -1,9 +1,0 @@
-
-File=/home/zhuo/workspace/scorpio/core_3D_Cartesian_Cylindrical/patch/2D/test_schulz/test.log
-
-if grep -q "dt=   0.0000" "$File"; 
-then
-  echo "Well... dt = 0"
-else
-  echo "Everything is fine"
-fi
